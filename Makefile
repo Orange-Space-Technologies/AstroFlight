@@ -10,7 +10,8 @@ build:
 build-debug:
 	cargo build
 
-run-release:
+
+run-build:
 	cargo build --release
 
 run: build data
@@ -22,11 +23,14 @@ run-qemu: data
 only-run:
 	target/arm-unknown-linux-gnueabihf/release/astro_flight
 
+
 test-x86:
 	RUSTFLAGS='-C target-feature=+crt-static' cargo --config "target.arm-unknown-linux-gnueabihf.runner='qemu-arm'" test
 
-test-arm:
+test:
 	cargo test
+
+
 
 install-service:
 	ln -s /home/pi/AstroFlight/astroflight.service /etc/systemd/system/astroflight.service
