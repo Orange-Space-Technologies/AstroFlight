@@ -1,0 +1,13 @@
+[Unit]
+Description=AstroFlight
+After=multi-user.target
+
+[Service]
+Type=simple
+User=pi
+WorkingDirectory=/home/pi/AstroFlight
+ExecStart=make run
+Restart=always
+
+[Install]
+WantedBy=multi-user.target

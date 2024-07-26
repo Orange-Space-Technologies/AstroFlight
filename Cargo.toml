@@ -1,11 +1,18 @@
 [package]
 name = "astro_flight"
+description = "AstroFlight is a rocket flight software developed by [insert our name] for the AstroCore family of flight computers"
 version = "0.1.0"
 edition = "2021"
+
+[build]
+target = "arm-unknown-linux-gnueabihf"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
 bmp390 = "0.3.0"
 bno055 = "0.4.0"
-rppal = "0.18.0"
+
+[dependencies.rppal]
+version = "0.18.0"
+features = ["hal"]
