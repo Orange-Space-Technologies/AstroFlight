@@ -17,13 +17,13 @@ run: build data
 	target/arm-unknown-linux-gnueabihf/release/astro_flight
 
 run-qemu: data
-	RUSTFLAGS='-C target-feature=+crt-static' cargo --config 'runner="qemu-arm"' run
+	RUSTFLAGS='-C target-feature=+crt-static' cargo --config "target.arm-unknown-linux-gnueabihf.runner='qemu-arm'" run
 
 only-run:
 	target/arm-unknown-linux-gnueabihf/release/astro_flight
 
 test-x86:
-	RUSTFLAGS='-C target-feature=+crt-static' cargo --config 'runner="qemu-arm"' test
+	RUSTFLAGS='-C target-feature=+crt-static' cargo --config "target.arm-unknown-linux-gnueabihf.runner='qemu-arm'" test
 
 test-arm:
 	cargo test
