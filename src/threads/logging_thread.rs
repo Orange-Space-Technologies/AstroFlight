@@ -2,27 +2,32 @@ use std::sync::Mutex;
 use queues::{IsQueue, Queue};
 
 use crate::models::sensors_reading::SensorsReading;
+use crate::config::LOGGING_THREAD_HZ;
+use crate::utils::time_loop;
 
 pub fn logging_thread(
     sensors_logging_queue: &Mutex<Queue<SensorsReading>>
 ) {
-    let mut index = 0;
-    let mut last_index = -1;
-    loop {
+    let index: Mutex<i32> = Mutex::new(0);
+    let last_index: Mutex<i32> = Mutex::new(-1);
+    time_loop(LOGGING_THREAD_HZ, & move ||{
+        let mut index = index.lock().unwrap();
+        let mut last_index = last_index.lock().unwrap();
+
         let queue_lock = sensors_logging_queue.lock();
         if let Ok(mut lock) = queue_lock {
             if let Ok(reading) = lock.remove() {
-                index = reading.pressure as i32;
-                if index != last_index + 1 && index != 0{
-                    panic!("Missing reading: {} -> {}", last_index, index);
+
+
+                *index = reading.pressure as i32;
+                if *index != *last_index + 1 && *index != 0{
+                    panic!("Missing reading: {} -> {}", *last_index, *index);
                 }
                 println!("Logging: {:?}", reading);
             }
             
         }
         
-        last_index = index.clone();
-        // Sleep for 10 milliseconds
-        std::thread::sleep(std::time::Duration::from_millis(10));
-    }
+        *last_index = (*index).clone();
+    });
 }

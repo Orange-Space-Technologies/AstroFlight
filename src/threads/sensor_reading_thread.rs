@@ -3,18 +3,22 @@ use queues::{IsQueue, Queue};
 use rand;
 
 use crate::models::sensors_reading::SensorsReading;
+use crate::config::SENSOR_READING_THREAD_HZ;
+use crate::utils::time_loop;
 
 pub fn sensor_reading_thread(
     latest_sensors_reading: &Mutex<SensorsReading>,
     sensors_logging_queue: &Mutex<Queue<SensorsReading>>
 ) {
-    let mut index = 0;
-    loop {
+    let index: Mutex<i32> = Mutex::new(0);
+    time_loop(SENSOR_READING_THREAD_HZ, & move ||{
+        let mut index = index.lock().unwrap();
+
         // Read sensor data
         let mut sensors_reading = SensorsReading::null();
 
         // Randomize data
-        sensors_reading.pressure = index as f32;
+        sensors_reading.pressure = (*index) as f32;
         sensors_reading.altitude = 100.0 + (rand::random::<f32>() * 10.0);
         sensors_reading.temperature = 20.0 + (rand::random::<f32>() * 10.0);
         sensors_reading.pos_x = rand::random::<f32>() * 100.0;
@@ -42,11 +46,8 @@ pub fn sensor_reading_thread(
             }
         }
         
-        index += 1;
-        
-        // Sleep for 10 milliseconds
-        std::thread::sleep(std::time::Duration::from_millis(10));
-    }
+        *index += 1;
+    });
 }
 
 #[allow(dead_code)]

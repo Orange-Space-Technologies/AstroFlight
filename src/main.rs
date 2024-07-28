@@ -10,6 +10,9 @@ use threads::sensor_reading_thread::sensor_reading_thread;
 extern crate queues;
 use queues::Queue;
 
+pub mod config;
+pub mod utils;
+
 // Create mutex for shared data (current sensor reading)
 
 fn main() {
@@ -28,8 +31,14 @@ fn main() {
     let logging_thread_handle = thread::spawn(move ||{
         threads::logging_thread::logging_thread(&sensors_queue_clone_2);
     });
+
+    let sensors_reading_clone_2 = latest_sensors_reading.clone();
+    let telemetry_thread_handle = thread::spawn(move ||{
+        threads::telemetry_thread::telemetry_thread(&sensors_reading_clone_2);
+    });
     
 
     sensor_reading_thread_handle.join().unwrap();
     logging_thread_handle.join().unwrap();
+    telemetry_thread_handle.join().unwrap();
 }
