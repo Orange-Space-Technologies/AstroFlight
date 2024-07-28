@@ -10,18 +10,15 @@ pub fn sensor_reading_thread(latest_sensors_reading: &Mutex<SensorsReading>, sen
     // Timing setup
     let target_loop_duration = std::time::Duration::from_secs_f32(1.0 / SENSOR_READING_THREAD_HZ as f32);
 
-    let index: Mutex<i32> = Mutex::new(0);
+    let mut index: i32 = 0;
     loop {
         let loop_start = std::time::Instant::now();
-
-
-        let mut index = index.lock().unwrap();
 
         // Read sensor data
         let mut sensors_reading = SensorsReading::null();
 
         // Randomize data
-        sensors_reading.pressure = (*index) as f32;
+        sensors_reading.pressure = index as f32;
         sensors_reading.altitude = 100.0 + (rand::random::<f32>() * 10.0);
         sensors_reading.temperature = 20.0 + (rand::random::<f32>() * 10.0);
         sensors_reading.pos_x = rand::random::<f32>() * 100.0;
@@ -49,7 +46,7 @@ pub fn sensor_reading_thread(latest_sensors_reading: &Mutex<SensorsReading>, sen
             }
         }
         
-        *index += 1;
+        index += 1;
 
         // Time loop
         time_loop(target_loop_duration, loop_start)
