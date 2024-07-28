@@ -6,12 +6,15 @@ use crate::models::sensors_reading::SensorsReading;
 use crate::config::SENSOR_READING_THREAD_HZ;
 use crate::utils::time_loop;
 
-pub fn sensor_reading_thread(
-    latest_sensors_reading: &Mutex<SensorsReading>,
-    sensors_logging_queue: &Mutex<Queue<SensorsReading>>
-) {
+pub fn sensor_reading_thread(latest_sensors_reading: &Mutex<SensorsReading>, sensors_logging_queue: &Mutex<Queue<SensorsReading>>) {
+    // Timing setup
+    let target_loop_duration = std::time::Duration::from_secs_f32(1.0 / SENSOR_READING_THREAD_HZ as f32);
+
     let index: Mutex<i32> = Mutex::new(0);
-    time_loop(SENSOR_READING_THREAD_HZ, & move ||{
+    loop {
+        let loop_start = std::time::Instant::now();
+
+
         let mut index = index.lock().unwrap();
 
         // Read sensor data
@@ -47,7 +50,10 @@ pub fn sensor_reading_thread(
         }
         
         *index += 1;
-    });
+
+        // Time loop
+        time_loop(target_loop_duration, loop_start)
+    }
 }
 
 #[allow(dead_code)]

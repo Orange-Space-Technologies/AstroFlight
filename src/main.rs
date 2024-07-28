@@ -24,21 +24,21 @@ fn main() {
     let sensors_reading_clone_1 = latest_sensors_reading.clone();
     let sensors_queue_clone_1 = sensors_logging_queue.clone();
     let sensor_reading_thread_handle = thread::spawn(move ||{
-        sensor_reading_thread(&sensors_reading_clone_1, &sensors_queue_clone_1);
+        return sensor_reading_thread(&sensors_reading_clone_1, &sensors_queue_clone_1);
     });
 
     let sensors_queue_clone_2 = sensors_logging_queue.clone();
     let logging_thread_handle = thread::spawn(move ||{
-        threads::logging_thread::logging_thread(&sensors_queue_clone_2);
+        return threads::logging_thread::logging_thread(&sensors_queue_clone_2);
     });
 
     let sensors_reading_clone_2 = latest_sensors_reading.clone();
     let telemetry_thread_handle = thread::spawn(move ||{
-        threads::telemetry_thread::telemetry_thread(&sensors_reading_clone_2);
+        return threads::telemetry_thread::telemetry_thread(&sensors_reading_clone_2);
     });
     
 
     sensor_reading_thread_handle.join().unwrap();
     logging_thread_handle.join().unwrap();
-    telemetry_thread_handle.join().unwrap();
+    let _ = telemetry_thread_handle.join().unwrap();
 }

@@ -1,15 +1,34 @@
+use std::time::{Duration, Instant};
 use std::sync::Mutex;
 
 use crate::models::sensors_reading::SensorsReading;
 use crate::config::TELEMETRY_THREAD_HZ;
 use crate::utils::time_loop;
 
-pub fn telemetry_thread(sensors_reading: &Mutex<SensorsReading>) {
-    time_loop(TELEMETRY_THREAD_HZ, &|| {
+use rppal::uart::{Parity, Uart};
+
+pub fn telemetry_thread(sensors_reading: &Mutex<SensorsReading>) -> Result<(), rppal::uart::Error> {
+    // Timing setup
+    let target_loop_duration: Duration = std::time::Duration::from_secs_f32(1.0 / TELEMETRY_THREAD_HZ as f32);
+
+    // Setup UART
+    let mut uart = Uart::new(19200, Parity::None, 8, 1)?;
+    uart.set_write_mode(true)?;
+    loop {
+        let loop_start = Instant::now();
+
         let mutex_lock = sensors_reading.lock();
         if let Ok(reading) = mutex_lock {
-            println!("Telemetry: {:?}", reading);
+            println!("Telemetry: {:?}", *reading);
+
+            // Send to UART
+            let buffer: Vec<u8> = (*reading).to_be_bytes();
+            if let Err(e) = uart.write(&buffer) {
+                println!("Error writing to UART: {:?}", e);
+            }
         }
-    });
+        // Time loop
+        time_loop(target_loop_duration, loop_start)
+    }
 }
 

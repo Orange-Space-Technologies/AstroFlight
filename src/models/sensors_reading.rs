@@ -42,4 +42,25 @@ impl SensorsReading {
             gps_altitude: 0.0,
         };
     }
+
+    pub fn to_be_bytes(&self) -> Vec<u8> {
+        let buff = [
+            &self.pressure.to_be_bytes()[..],
+            &self.altitude.to_be_bytes()[..],
+            &self.temperature.to_be_bytes()[..],
+            &self.pos_x.to_be_bytes()[..],
+            &self.pos_y.to_be_bytes()[..],
+            &self.pos_z.to_be_bytes()[..],
+            &self.vel_x.to_be_bytes()[..],
+            &self.vel_y.to_be_bytes()[..],
+            &self.vel_z.to_be_bytes()[..],
+            &self.acc_x.to_be_bytes()[..],
+            &self.acc_y.to_be_bytes()[..],
+            &self.acc_z.to_be_bytes()[..],
+            &self.gps_latitude.to_be_bytes()[..],
+            &self.gps_longitude.to_be_bytes()[..],
+            &self.gps_altitude.to_be_bytes()[..],
+        ].concat();
+        return buff
+    }
 }
