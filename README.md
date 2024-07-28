@@ -20,8 +20,10 @@ vim ~/.cargo/config
 ```
 Tell Cargo to use a specific linker version for your target:  
 ```
+# in ~/.cargo/config
+
 [target.arm-unknown-linux-gnueabihf]
-linker = "/rpi_tools/arm-bcm2708/arm-rpi-4.9.3-linux-gnueabihf/bin/arm-linux-gnueabihf-gcc"
+linker = "rpi_tools/arm-bcm2708/arm-rpi-4.9.3-linux-gnueabihf/bin/arm-linux-gnueabihf-gcc"
 ```
 
 ## Compiling and running tests
@@ -45,7 +47,7 @@ To run tests on the real hardware (Raspberry Pi Zero 2W):
 make run
 ```
 To run emulated tests on a x86 CPU, you need to have the `qemu-arm` userspace emulator installed, on Arch Linux, it's the `qemu-user` package.  
-No all tests can run, for example the senzors can't be initialized, so some tests will be skipped.  
+Not all tests can run, for example the sensors can't be initialized, so some tests will be skipped.  
 Then, to run the tests, just execute:  
 ```
 make test-x86
