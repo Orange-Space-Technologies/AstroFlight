@@ -12,6 +12,8 @@ target = "arm-unknown-linux-gnueabihf"
 [dependencies]
 bmp390 = "0.3.0"
 bno055 = "0.4.0"
+queues = "1.1.0"
+rand = "0.8.5"
 
 [dependencies.rppal]
 version = "0.18.0"
