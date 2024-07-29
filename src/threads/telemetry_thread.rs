@@ -7,7 +7,8 @@ use crate::utils::time_loop;
 
 use rppal::uart::{Parity, Uart};
 
-pub fn telemetry_thread(sensors_reading: &Mutex<SensorsReading>) -> Result<(), rppal::uart::Error> {
+#[allow(unused_variables)]
+pub fn telemetry_thread(flag_continue_running: &Mutex<bool>, sensors_reading: &Mutex<SensorsReading>) -> Result<(), rppal::uart::Error> {
     // Timing setup
     let target_loop_duration: Duration = std::time::Duration::from_secs_f32(1.0 / TELEMETRY_THREAD_HZ as f32);
 
