@@ -8,13 +8,23 @@ use crate::utils::time_loop;
 use rppal::uart::{Parity, Uart};
 
 #[allow(unused_variables)]
-pub fn telemetry_thread(flag_continue_running: &Mutex<bool>, sensors_reading: &Mutex<SensorsReading>) -> Result<(), rppal::uart::Error> {
+pub fn telemetry_thread(flag_continue_running: &Mutex<bool>, sensors_reading: &Mutex<SensorsReading>) -> Result<String, rppal::uart::Error> {
     // Timing setup
     let target_loop_duration: Duration = std::time::Duration::from_secs_f32(1.0 / TELEMETRY_THREAD_HZ as f32);
 
     // Setup UART
-    let mut uart = Uart::new(19200, Parity::None, 8, 1)?;
-    uart.set_write_mode(true)?;
+    let uart = Uart::new(19200, Parity::None, 8, 1);
+    if let Err(e) = uart {
+        println!("[TELEMETRY] Error initializing UART: {:?}", e);
+        return Err(e);
+    }
+    let mut uart = uart.unwrap();
+
+    if let Err(e) = uart.set_write_mode(true) {
+        println!("[TELEMETRY] Error setting write mode: {:?}", e);
+        return Err(e);
+    }
+
     loop {
         let loop_start = Instant::now();
 
@@ -28,8 +38,19 @@ pub fn telemetry_thread(flag_continue_running: &Mutex<bool>, sensors_reading: &M
                 println!("Error writing to UART: {:?}", e);
             }
         }
+
+        if let Ok(flag_continue_running) = flag_continue_running.lock() {
+            if !(*flag_continue_running) {
+                println!("[TELEMETRY] Exiting...");
+                break;
+            }
+        } else {
+            println!("[TELEMETRY] Error checking flag");
+        }
+
         // Time loop
         time_loop(target_loop_duration, loop_start)
     }
+    return Ok("ok".to_string());
 }
 

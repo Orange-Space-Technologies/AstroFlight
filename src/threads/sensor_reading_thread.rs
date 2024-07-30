@@ -13,6 +13,11 @@ use bno055;
 
 use rppal::i2c::I2c;
 
+// Simulation
+use crate::models::simulation_entry::SimulationEntry;
+use crate::utils::parse_simlation_csv;
+use std::{env, fs};
+
 fn update_speed_position(acceleration: &Vector3<f32>, sensors_reading: &mut SensorsReading, last_reading: &SensorsReading, target_loop_duration: &Duration) {
     sensors_reading.acc_x = acceleration.x;
     sensors_reading.acc_y = acceleration.y;
@@ -29,7 +34,7 @@ fn update_speed_position(acceleration: &Vector3<f32>, sensors_reading: &mut Sens
 
 #[allow(dead_code)]
 #[allow(unused_variables)]
-pub fn sensor_reading_thread(flag_continue_running: &Mutex<bool>, latest_sensors_reading: &Mutex<SensorsReading>, sensors_logging_queue: &Mutex<Queue<SensorsReading>>) {
+pub fn sensor_reading_thread(flag_continue_running: &Mutex<bool>, latest_sensors_reading: &Mutex<SensorsReading>, sensors_logging_queue: &Mutex<Queue<SensorsReading>>) -> Result<String, String> {
     // Timing setup
     let target_loop_duration = std::time::Duration::from_secs_f32(1.0 / SENSOR_READING_THREAD_HZ as f32);
 
@@ -39,7 +44,7 @@ pub fn sensor_reading_thread(flag_continue_running: &Mutex<bool>, latest_sensors
     let mut imu = bno055::Bno055::new(i2c);
     if let Err(e) = imu.init(delay) {
         println!("[SENSORS] Error initializing BNO055: {:?}", e);
-        // return Err(e);
+        return Err(e.to_string());
     }
 
     let acc_config = imu.get_acc_config();
@@ -49,11 +54,11 @@ pub fn sensor_reading_thread(flag_continue_running: &Mutex<bool>, latest_sensors
         acc_config.set_operation_mode(bno055::AccOperationMode::Normal);
         if let Err(e) = imu.set_acc_config(&acc_config) {
             println!("[SENSORS] Error setting acc config: {:?}", e);
-            // return Err(e);
+            return Err(e.to_string());
         }
     } else {
         println!("[SENSORS] Error getting acc config");
-        // return Err(acc_config.unwrap_err());
+        return Err(acc_config.unwrap_err().to_string());
     }
 
     // Wait for calibration to complete
@@ -67,15 +72,16 @@ pub fn sensor_reading_thread(flag_continue_running: &Mutex<bool>, latest_sensors
                 println!("[SENSORS] Calibrating...");
             }
         } else {
-            println!("[SENSORS] Error checking calibration: {:?}", is_calibrated_result.unwrap_err());
-            // return Err(is_calibrated_result.unwrap_err());
+            let err = is_calibrated_result.unwrap_err();
+            println!("[SENSORS] Error checking calibration: {:?}", &err);
+            return Err(err.to_string());
         }
     }
 
     // Set IMU mode to NDOF (9 degrees of freedom)
     if let Err(e) = imu.set_mode(bno055::BNO055OperationMode::NDOF, delay) {
         println!("[SENSORS] Error setting mode: {:?}", e);
-        // return Err(e);
+        return Err(e.to_string());
     }
 
     let mut index: i32 = 0;
@@ -115,7 +121,11 @@ pub fn sensor_reading_thread(flag_continue_running: &Mutex<bool>, latest_sensors
 
         
         // Update latest sensor reading
-        *latest_sensors_reading.lock().unwrap() = sensors_reading.clone();
+        if let Ok(mut latest_sensors_reading) = latest_sensors_reading.lock() {
+            *latest_sensors_reading = sensors_reading.clone();
+        } else {
+            println!("[SENSORS] Error updating latest sensor reading");
+        }
         
         // Log sensor data
         let queue_lock = sensors_logging_queue.lock();
@@ -127,25 +137,53 @@ pub fn sensor_reading_thread(flag_continue_running: &Mutex<bool>, latest_sensors
         
         index += 1;
 
-        if !(*flag_continue_running.lock().unwrap()) {
-            println!("[SENSORS] Exiting...");
-            break;
+        if let Ok(flag_continue_running) = flag_continue_running.lock() {
+            if !(*flag_continue_running) {
+                println!("[SENSORS] Exiting...");
+                break;
+            }
+        } else {
+            println!("[SENSORS] Error checking flag");
         }
 
         // Time loop
         time_loop(target_loop_duration, loop_start)
     };
-    // return Ok(());
+    return Ok("ok".to_string());
 }
 
 #[allow(dead_code)]
 #[allow(unused_variables)]
-pub fn software_in_the_loop_sensor_reading_thread(flag_continue_running: &Mutex<bool>, latest_sensors_reading: &Mutex<SensorsReading>, sensors_logging_queue: &Mutex<Queue<SensorsReading>>) {
+pub fn software_in_the_loop_sensor_reading_thread(flag_continue_running: &Mutex<bool>, latest_sensors_reading: &Mutex<SensorsReading>, sensors_logging_queue: &Mutex<Queue<SensorsReading>>) -> Result<String, String> {
     // Timing setup
-    let target_loop_duration = std::time::Duration::from_secs_f32(1.0 / SENSOR_READING_THREAD_HZ as f32);
+    // let target_loop_duration = std::time::Duration::from_secs_f32(1.0 / SENSOR_READING_THREAD_HZ as f32);
+
+    // Get FILENAME from env
+    #[allow(non_snake_case)]
+    let SIM_FILENAME: String;
+    if env::var("FILENAME").is_ok() {
+        SIM_FILENAME = env::var("FILENAME").unwrap();
+    } else {
+        println!("[SENSORS SIM] FILENAME not set");
+        *flag_continue_running.lock().unwrap() = false;
+        return Err("FILENAME not set".to_string());
+    }
+
+    println!("[SENSORS SIM] Reading simulation data from: {}", SIM_FILENAME);
+    let sim_reader = fs::read_to_string(SIM_FILENAME).unwrap();
+    let sim_data = sim_reader.as_str();
+    let sim_data = parse_simlation_csv(sim_data);
+
+    if let Err(e) = sim_data {
+        println!("[SENSORS SIM] Error parsing simulation data: {:?}", e);
+        return Err("Error parsing simulation data".to_string());
+    }
+    let sim_data = sim_data.unwrap();
 
     let mut index: i32 = 0;
-    loop {
+    for i in 0..sim_data.len() {
+        let entry: SimulationEntry = sim_data[i];
+
         let loop_start = std::time::Instant::now();
 
         let last_reading = (*latest_sensors_reading.lock().unwrap()).clone();
@@ -156,18 +194,19 @@ pub fn software_in_the_loop_sensor_reading_thread(flag_continue_running: &Mutex<
         let velocity: Vector3<f32> = Vector3 {
             x: 0.0,
             y: 0.0,
-            z: 0.05,
+            z: entry.vertical_acceleration as f32,
         };
 
-        update_speed_position(&velocity, &mut sensors_reading, &last_reading, &target_loop_duration);
+        let time_from_reading: Duration;
+        if i == 0 {
+            time_from_reading = Duration::from_secs_f64(entry.time);
+        } else {
+            time_from_reading = Duration::from_secs_f64(entry.time - sim_data[i-1].time);
+        }
+        update_speed_position(&velocity, &mut sensors_reading, &last_reading, &time_from_reading);
 
         // Randomize data
         sensors_reading.pressure = index as f32;
-        sensors_reading.altitude = 100.0 + (rand::random::<f32>() * 10.0);
-        sensors_reading.temperature = 20.0 + (rand::random::<f32>() * 10.0);
-        sensors_reading.gps_latitude = 37.7749 + (rand::random::<f32>() * 0.1);
-        sensors_reading.gps_longitude = -122.4194 + (rand::random::<f32>() * 0.1);
-        sensors_reading.gps_altitude = 100.0 + (rand::random::<f32>() * 10.0);
 
         
         // Update latest sensor reading
@@ -177,13 +216,30 @@ pub fn software_in_the_loop_sensor_reading_thread(flag_continue_running: &Mutex<
         let queue_lock = sensors_logging_queue.lock();
         if let Ok(mut lock) = queue_lock {
             if let Err(err) = lock.add(sensors_reading.clone()) {
-                println!("[SENSORS] Error adding to queue: {:?}", err);
+                println!("[SENSORS SIM] Error adding to queue: {:?}", err);
             }
         }
         
+        println!("Calculated altitude: {}, Simulation altitude: {}", sensors_reading.pos_z, entry.altitude);
+
         index += 1;
 
+        if let Ok(flag_continue_running) = flag_continue_running.lock() {
+            if !(*flag_continue_running) {
+                println!("[SENSORS SIM] Exiting...");
+                break;
+            }
+        } else {
+            println!("[SENSORS SIM] Error checking flag");
+        }
+
         // Time loop
-        time_loop(target_loop_duration, loop_start)
+        if i == sim_data.len()-1 {
+            *flag_continue_running.lock().unwrap() = false;
+            break;
+        }
+        let time_to_sleep = Duration::from_secs_f64(sim_data[i+1].time - entry.time);
+        time_loop(time_to_sleep, loop_start);
     }
+    Ok("ok".to_string())
 }
