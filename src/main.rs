@@ -4,6 +4,7 @@ use std::env;
 
 mod models;
 
+use models::state::State;
 use models::sensors_reading::SensorsReading;
 
 mod threads;
@@ -29,34 +30,53 @@ fn main() {
 
     let flag_continue_running: Arc<Mutex<bool>> = Arc::new(Mutex::new(true));
 
+    let state: Arc<Mutex<State>> = Arc::new(Mutex::new(State::new()));
+
     // SENSOR READING THREAD
+    let state_clone1 = state.clone();
+
     let flag_continue_running_clone1 = flag_continue_running.clone();
     let latest_sensors_reading_clone1 = latest_sensors_reading.clone();
     let sensors_logging_queue_clone1 = sensors_logging_queue.clone();
+    //spawn
     let sensor_reading_thread_handle = thread::Builder::new().name("sensor_reading".to_string()).spawn(move ||{
         if TESTING || X86 {
-            return software_in_the_loop_sensor_reading_thread(&flag_continue_running_clone1, &latest_sensors_reading_clone1, &sensors_logging_queue_clone1);
+            return software_in_the_loop_sensor_reading_thread(&state_clone1, &flag_continue_running_clone1, &latest_sensors_reading_clone1, &sensors_logging_queue_clone1);
         } else {
-            return sensor_reading_thread(&flag_continue_running_clone1, &latest_sensors_reading_clone1, &sensors_logging_queue_clone1);
+            return sensor_reading_thread(&state_clone1, &flag_continue_running_clone1, &latest_sensors_reading_clone1, &sensors_logging_queue_clone1);
         }
     }).expect("Cannot create sensor reading thread");
 
     // LOGGING THREAD
+    let state_clone2 = state.clone();
+
     let flag_continue_running_clone2 = flag_continue_running.clone();
     let sensors_logging_queue_clone2 = sensors_logging_queue.clone();
+    //spawn
     let logging_thread_handle = thread::Builder::new().name("logging".to_string()).spawn(move ||{
-        return threads::logging_thread::logging_thread(&flag_continue_running_clone2, &sensors_logging_queue_clone2);
+        return threads::logging_thread::logging_thread(&state_clone2, &flag_continue_running_clone2, &sensors_logging_queue_clone2);
     }).expect("Cannot create logging thread");
 
     // TELEMETRY THREAD
+    let state_clone3 = state.clone();
+
     let flag_continue_running_clone3 = flag_continue_running.clone();
     let latest_sensors_reading_clone2 = latest_sensors_reading.clone();
-
-    
+    //spawn
     let telemetry_thread_handle = thread::Builder::new().name("telemetry".to_string()).spawn(move ||{
         if X86 {println!("[MAIN] Running on x86, turning telemetry off"); return Ok("X86, turning telemetry off".to_string());}
-        return threads::telemetry_thread::telemetry_thread(&flag_continue_running_clone3, &latest_sensors_reading_clone2);
+        return threads::telemetry_thread::telemetry_thread(&state_clone3, &flag_continue_running_clone3, &latest_sensors_reading_clone2);
     }).expect("Cannot create telemetry thread");
+
+    // CONTROL THREAD
+    let state_clone4 = state.clone();
+
+    let flag_continue_running_clone4 = flag_continue_running.clone();
+    let latest_sensors_reading_clone3 = latest_sensors_reading.clone();
+    // spawn
+    let control_thread_handle = thread::Builder::new().name("control".to_string()).spawn(move ||{
+        return threads::control_thread::control_thread(&state_clone4, &flag_continue_running_clone4, &latest_sensors_reading_clone3);
+    }).expect("Cannot create control thread");
 
     
     loop {
@@ -69,7 +89,10 @@ fn main() {
         if telemetry_thread_handle.is_finished() {
             println!("[MAIN] [WARN] Telemetry thread finished");
         }
-        if sensor_reading_thread_handle.is_finished() && logging_thread_handle.is_finished() && telemetry_thread_handle.is_finished() {
+        if control_thread_handle.is_finished() {
+            println!("[MAIN] [WARN] Control thread finished");
+        }
+        if sensor_reading_thread_handle.is_finished() && logging_thread_handle.is_finished() && telemetry_thread_handle.is_finished() && control_thread_handle.is_finished() {
             break;
         }
         // sleep for 500ms
@@ -94,6 +117,12 @@ fn main() {
     match telemetry_result {
         Ok(_) => println!("[MAIN] Telemetry thread finished successfully"),
         Err(e) => { println!("[MAIN] Telemetry thread finished with error: {:?}", e); exit_code = 1 }
+    }
+
+    let control_result = control_thread_handle.join().unwrap();
+    match control_result {
+        Ok(_) => println!("[MAIN] Control thread finished successfully"),
+        Err(e) => { println!("[MAIN] Control thread finished with error: {:?}", e); exit_code = 1 }
     }
 
     std::process::exit(exit_code);

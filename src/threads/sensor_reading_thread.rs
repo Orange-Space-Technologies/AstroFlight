@@ -4,8 +4,10 @@ use bno055::mint::Vector3;
 use queues::{IsQueue, Queue};
 use rand;
 
-use crate::models::sensors_reading::SensorsReading;
+use crate::models::state::State;
 use crate::models::delay::Delay;
+
+use crate::models::sensors_reading::SensorsReading;
 use crate::config::SENSOR_READING_THREAD_HZ;
 use crate::utils::time_loop;
 
@@ -34,7 +36,7 @@ fn update_speed_position(acceleration: &Vector3<f32>, sensors_reading: &mut Sens
 
 #[allow(dead_code)]
 #[allow(unused_variables)]
-pub fn sensor_reading_thread(flag_continue_running: &Mutex<bool>, latest_sensors_reading: &Mutex<SensorsReading>, sensors_logging_queue: &Mutex<Queue<SensorsReading>>) -> Result<String, String> {
+pub fn sensor_reading_thread(state: &Mutex<State>, flag_continue_running: &Mutex<bool>, latest_sensors_reading: &Mutex<SensorsReading>, sensors_logging_queue: &Mutex<Queue<SensorsReading>>) -> Result<String, String> {
     // Timing setup
     let target_loop_duration = std::time::Duration::from_secs_f32(1.0 / SENSOR_READING_THREAD_HZ as f32);
 
@@ -154,7 +156,7 @@ pub fn sensor_reading_thread(flag_continue_running: &Mutex<bool>, latest_sensors
 
 #[allow(dead_code)]
 #[allow(unused_variables)]
-pub fn software_in_the_loop_sensor_reading_thread(flag_continue_running: &Mutex<bool>, latest_sensors_reading: &Mutex<SensorsReading>, sensors_logging_queue: &Mutex<Queue<SensorsReading>>) -> Result<String, String> {
+pub fn software_in_the_loop_sensor_reading_thread(state: &Mutex<State>, flag_continue_running: &Mutex<bool>, latest_sensors_reading: &Mutex<SensorsReading>, sensors_logging_queue: &Mutex<Queue<SensorsReading>>) -> Result<String, String> {
     // Timing setup
     // let target_loop_duration = std::time::Duration::from_secs_f32(1.0 / SENSOR_READING_THREAD_HZ as f32);
 
