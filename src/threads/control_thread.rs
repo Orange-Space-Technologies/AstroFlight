@@ -19,13 +19,19 @@ pub fn control_thread(
     // Timing setup
     let target_loop_duration = std::time::Duration::from_secs_f32(1.0 / CONTROL_THREAD_HZ as f32);
 
+    // let mut last_reading: SensorsReading = SensorsReading::null();
+    let mut max_altitude: f32 = 0.0;
+
     let control_start: Instant = Instant::now();
-    let mut launch_time: Instant = Instant::now();
+    // let mut launch_time: Instant = Instant::now();
 
     loop {
         let loop_start = std::time::Instant::now();
 
         if let Ok(reading) = sensors_reading.lock() {
+            if reading.pos_z > max_altitude {
+                max_altitude = reading.pos_z;
+            }
             if let Ok(mut state) = state.lock() {
                 let stage = (*state).get_stage();
 
@@ -36,29 +42,50 @@ pub fn control_thread(
                     // }
                 } else if stage == Stage::PadIdle {
                     if reading.acc_z > config::LAUNCH_TRESHOLD {
-                        launch_time = Instant::now();
+                        state.launch_time = Instant::now();
                         println!("\n\n\n[CONTROL] Launch detected!");
                         println!("[CONTROL] Time: {:?}", control_start.elapsed());
                         state.set_stage(Stage::Launch);
                     }
                 } else if stage == Stage::Launch {
                     if reading.acc_z < config::BURNOUT_TRESHOLD {
+                        state.burnout_time = Instant::now();
                         println!("\n\n\n[CONTROL] Burnout detected!");
-                        println!("[CONTROL] Time: {:?}", launch_time.elapsed());
+                        println!("[CONTROL] Time: {:?}", state.launch_time.elapsed());
                         state.set_stage(Stage::Coast);
                     }
                 } else if stage == Stage::Coast {
                     if reading.vel_z.abs() < config::APOGEE_TRESHOLD {
+                        state.apogee_time = Instant::now();
                         println!("\n\n\n[CONTROL] Apogee detected!");
-                        println!("[CONTROL] Time: {:?}", launch_time.elapsed());
+                        println!("[CONTROL] Time: {:?}", state.launch_time.elapsed());
+                        state.set_stage(Stage::Apogee);
+                    }
+                    if reading.pos_z < max_altitude {
+                        state.apogee_time = Instant::now();
+                        println!("\n\n\n[CONTROL] Apogee detected!");
+                        println!("[CONTROL] Time: {:?}", state.launch_time.elapsed());
                         state.set_stage(Stage::Apogee);
                     }
                 } else if stage == Stage::Apogee {
+                    if reading.pos_z < config::PARACHUTE_ALTITUDE {
+                        state.parachute_time = Instant::now();
+                        println!("\n\n\n[CONTROL] Parachute altitude detected!");
+                        println!("[CONTROL] Time: {:?}", state.launch_time.elapsed());
+                        state.set_stage(Stage::Parachute);
+                    }
                 } else if stage == Stage::Parachute {
+                    if reading.vel_z < config::LANDING_SPEED_TRESHOLD {
+                        state.landed_time = Instant::now();
+                        println!("\n\n\n[CONTROL] Landed detected!");
+                        println!("[CONTROL] Time: {:?}", state.launch_time.elapsed());
+                        state.set_stage(Stage::Landed);
+                    }
                 } else if stage == Stage::Landed {
                 } else {
                     println!("[CONTROL] Unknown stage: {:?}", stage);
                 }
+            // last_reading = reading.clone();
             } else {
                 println!("[CONTROL] Error accessing state");
             }

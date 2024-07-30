@@ -1,5 +1,10 @@
+use std::io::Write;
 use std::sync::Mutex;
 use queues::{IsQueue, Queue};
+
+use chrono;
+
+use crate::config;
 
 use crate::models::state::State;
 
@@ -12,19 +17,40 @@ pub fn logging_thread(state: &Mutex<State>, flag_continue_running: &Mutex<bool>,
     // Timing setup
     let target_loop_duration = std::time::Duration::from_secs_f32(1.0 / LOGGING_THREAD_HZ as f32);
 
+    let logging_filename = config::LOGGING_FILENAME.replace("{}", &format!("{}", chrono::Local::now().format("%Y-%m-%d_%H-%M-%S")));
+    let mut file = match std::fs::File::create(&logging_filename) {
+        Ok(file) => file,
+        Err(e) => {
+            println!("[LOGGING] Error creating file: {}", e);
+            return Err("Error creating file".to_string());
+        }
+    };
+
     loop {
         let loop_start = std::time::Instant::now();
 
         let queue_lock = sensors_logging_queue.lock();
         if let Ok(mut lock) = queue_lock {
             if let Ok(reading) = lock.remove() {
-                // println!("Logging: {:?}", reading);
+                if let Ok(state) = state.lock() {
+                    let state_csv = state.to_csv();
+                    let reading_csv = reading.to_csv();
+                    let logging_string = format!("{},{}\n", state_csv, reading_csv);
+                    match file.write_all(logging_string.as_bytes()) {
+                        Ok(_) => {}
+                        Err(e) => {
+                            println!("[LOGGING] Error writing to file: {}", e);
+                        }
+                    }
+                }
             }
         }
 
         if let Ok(flag_continue_running) = flag_continue_running.lock() {
             if !(*flag_continue_running) {
                 println!("[LOGGING] Exiting...");
+                file.sync_all().unwrap();
+                file.flush().unwrap();
                 break Ok("ok".to_string());
             }
         } else {

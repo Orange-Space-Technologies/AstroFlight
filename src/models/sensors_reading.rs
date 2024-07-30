@@ -63,4 +63,24 @@ impl SensorsReading {
         ].concat();
         return buff
     }
+
+    pub fn to_csv(&self) -> String {
+        return format!("{},{},{},{},{},{},{},{},{},{},{},{},{},{},{}",
+            self.pressure,
+            self.altitude,
+            self.temperature,
+            self.pos_x,
+            self.pos_y,
+            self.pos_z,
+            self.vel_x,
+            self.vel_y,
+            self.vel_z,
+            self.acc_x,
+            self.acc_y,
+            self.acc_z,
+            self.gps_latitude,
+            self.gps_longitude,
+            self.gps_altitude
+        );
+    }
 }
