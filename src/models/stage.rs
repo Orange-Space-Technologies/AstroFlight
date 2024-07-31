@@ -2,7 +2,7 @@
 pub enum Stage {
     Init,
     PadIdle,
-    Launch,
+    PoweredAscent,
     Coast,
     Apogee,
     Parachute,

@@ -43,11 +43,11 @@ pub fn control_thread(
                 } else if stage == Stage::PadIdle {
                     if reading.acc_z > config::LAUNCH_TRESHOLD {
                         state.launch_time = Instant::now();
-                        println!("\n\n\n[CONTROL] Launch detected!");
+                        println!("\n\n\n[CONTROL] PoweredAscent detected!");
                         println!("[CONTROL] Time: {:?}", control_start.elapsed());
-                        state.set_stage(Stage::Launch);
+                        state.set_stage(Stage::PoweredAscent);
                     }
-                } else if stage == Stage::Launch {
+                } else if stage == Stage::PoweredAscent {
                     if reading.acc_z < config::BURNOUT_TRESHOLD {
                         state.burnout_time = Instant::now();
                         println!("\n\n\n[CONTROL] Burnout detected!");
