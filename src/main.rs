@@ -14,6 +14,7 @@ use threads::sensor_reading_thread::{sensor_reading_thread, software_in_the_loop
 extern crate queues;
 use queues::Queue;
 
+pub mod control_checks;
 pub mod config;
 pub mod utils;
 

@@ -6,8 +6,8 @@ use crate::models::state::State;
 
 use crate::config::CONTROL_THREAD_HZ;
 use crate::models::sensors_reading::SensorsReading;
+use crate::control_checks::{self, ControlChecks};
 use crate::utils::time_loop;
-
 use crate::config;
 
 #[allow(unused_variables)]
@@ -25,6 +25,8 @@ pub fn control_thread(
     let control_start: Instant = Instant::now();
     // let mut launch_time: Instant = Instant::now();
 
+    let mut checks = ControlChecks::new();
+
     loop {
         let loop_start = std::time::Instant::now();
 
@@ -37,45 +39,44 @@ pub fn control_thread(
 
                 // println!("[CONTROL] Current stage: {:?}", stage);
                 if stage == Stage::Init {
-                    // if control_start.elapsed().as_secs() > 10 {
+                    // TODO: Add accelerometer check for inactivity (no movement)
                     state.set_stage(Stage::PadIdle);
-                    // }
                 } else if stage == Stage::PadIdle {
-                    if reading.acc_z > config::LAUNCH_TRESHOLD {
+                    if checks.check_launch(&*reading, &*state) { //reading.acc_z > config::LAUNCH_TRESHOLD {
                         state.launch_time = Instant::now();
                         println!("\n\n\n[CONTROL] PoweredAscent detected!");
                         println!("[CONTROL] Time: {:?}", control_start.elapsed());
                         state.set_stage(Stage::PoweredAscent);
                     }
                 } else if stage == Stage::PoweredAscent {
-                    if reading.acc_z < config::BURNOUT_TRESHOLD {
+                    if checks.check_burnout(&*reading, &*state) { //reading.acc_z < config::BURNOUT_TRESHOLD {
                         state.burnout_time = Instant::now();
                         println!("\n\n\n[CONTROL] Burnout detected!");
                         println!("[CONTROL] Time: {:?}", state.launch_time.elapsed());
                         state.set_stage(Stage::Coast);
                     }
                 } else if stage == Stage::Coast {
-                    if reading.vel_z.abs() < config::APOGEE_TRESHOLD {
+                    if checks.check_apogee_accel(&*reading, &*state) { //reading.vel_z.abs() < config::APOGEE_TRESHOLD {
                         state.apogee_time = Instant::now();
                         println!("\n\n\n[CONTROL] Apogee detected!");
                         println!("[CONTROL] Time: {:?}", state.launch_time.elapsed());
                         state.set_stage(Stage::Apogee);
                     }
-                    if reading.pos_z < max_altitude {
+                    if checks.check_apogee_altitude(&*reading, &*state) { //reading.pos_z < max_altitude {
                         state.apogee_time = Instant::now();
                         println!("\n\n\n[CONTROL] Apogee detected!");
                         println!("[CONTROL] Time: {:?}", state.launch_time.elapsed());
                         state.set_stage(Stage::Apogee);
                     }
                 } else if stage == Stage::Apogee {
-                    if reading.pos_z < config::PARACHUTE_ALTITUDE {
+                    if checks.check_parachute(&*reading, &*state) { //reading.pos_z < config::PARACHUTE_ALTITUDE {
                         state.parachute_time = Instant::now();
                         println!("\n\n\n[CONTROL] Parachute altitude detected!");
                         println!("[CONTROL] Time: {:?}", state.launch_time.elapsed());
                         state.set_stage(Stage::Parachute);
                     }
                 } else if stage == Stage::Parachute {
-                    if reading.vel_z < config::LANDING_SPEED_TRESHOLD {
+                    if checks.check_landed(&*reading, &*state) { //reading.vel_z < config::LANDING_SPEED_TRESHOLD {
                         state.landed_time = Instant::now();
                         println!("\n\n\n[CONTROL] Landed detected!");
                         println!("[CONTROL] Time: {:?}", state.launch_time.elapsed());
