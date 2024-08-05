@@ -35,13 +35,13 @@ impl State {
 
     pub fn to_csv(&self) -> String {
         format!(
-            "{:?}", //,{:?},{:?},{:?},{:?},{:?}",
-            // self.launch_time.elapsed(),
+            "{},{}", //,{:?},{:?},{:?},{:?},{:?}",
+            self.launch_time.elapsed().as_millis(),
             // self.burnout_time.elapsed(),
             // self.apogee_time.elapsed(),
             // self.parachute_time.elapsed(),
             // self.landed_time.elapsed(),
-            self.stage
+            self.stage as u8
         )
     }
 }

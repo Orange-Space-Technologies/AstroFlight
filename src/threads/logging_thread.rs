@@ -25,6 +25,8 @@ pub fn logging_thread(state: &Mutex<State>, flag_continue_running: &Mutex<bool>,
             return Err("Error creating file".to_string());
         }
     };
+    // Write header
+    file.write_all(b"# Time (ms), Stage, Pressure, Altitude (m), Temperature (C), Position X, Position Y, Position Z, Velocity X, Velocity Y, Velocity Z, Acceleration X, Acceleration Y, Acceleration Z, GPS Latitude, GPS Longitude, GPS Altitude\n");
 
     loop {
         let loop_start = std::time::Instant::now();
